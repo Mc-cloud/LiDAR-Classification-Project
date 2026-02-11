@@ -85,26 +85,3 @@ def extract_tree_features(laz_file_path):
     except Exception as e:
         print(f"Error processing {laz_file_path}: {e}")
         return None
-
-
-
-def main():
-    folder_path = "./data/train_data"
-
-    all_files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith('.laz')]
-
-    print(f"Found {len(all_files)} tress.")
-
-    results = []
-
-    with ProcessPoolExecutor() as executor:
-        features = list(tqdm(executor.map(extract_tree_features, all_files), total = len(all_files)))
-    
-    results = [f for f in features if f is not None]
-
-    df = pd.DataFrame(results)
-    print(f"Success!")
-    df.to_csv("training_data_20k.csv", index = False)
-
-if __name__ == '__main__':
-    main()

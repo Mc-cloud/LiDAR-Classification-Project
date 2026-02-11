@@ -5,8 +5,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 
-train_df = pd.read_csv("train_dataset_final.csv")
-val_df = pd.read_csv("val_dataset_final.csv")
+train_df = pd.read_csv("data/train_data/train_dataset_final.csv")
+val_df = pd.read_csv("data/train_data/val_dataset_final.csv")
 
 feature_cols = ['dbh_approx','p10_height_rel', 'p50_height_rel', 'p90_height_rel','height','num_points', 'crown_diameter', 'point_density', 'volume', 'crown_area']
 target_col = 'species'
