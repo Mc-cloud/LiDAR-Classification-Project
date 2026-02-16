@@ -4,7 +4,6 @@ import pandas as pd
 import laspy
 from concurrent.futures import ProcessPoolExecutor
 import numpy as np
-from tqdm import tqdm
 
 def extract_tree_features(laz_file_path):
     """
@@ -20,10 +19,12 @@ def extract_tree_features(laz_file_path):
 
         z_max = np.max(points[:, 2])
         z_min = np.min(points[:, 2])
+
         tree_height = z_max - z_min
+        
 
         target_points = 5000
-
+    
         if len(points) > target_points : 
             idx = np.random.choice(len(points), target_points, replace = False)
             geom_points = points[idx]
@@ -41,9 +42,8 @@ def extract_tree_features(laz_file_path):
             crown_area = hull_2d.volume
         except :
             crown_area = 0
-        
-    
-        points_centered = points - np.mean(points, axis=0)
+
+        crown_ratio = crown_area/tree_height
 
         x_spread = np.max(points[:, 0]) - np.min(points[:, 0])
         y_spread = np.max(points[:, 1]) - np.min(points[:, 1])
@@ -70,16 +70,11 @@ def extract_tree_features(laz_file_path):
 
         return {
             'filename': os.path.basename(laz_file_path),
-            'num_points': len(points),
+            'point_density' : point_density,
             'height': tree_height,
-            'crown_diameter': crown_diameter,
-            'crown_area': crown_area,
-            'volume': tree_volume,
-            'point_density': point_density,
+            'crown_ratio' : crown_ratio,
             'dbh_approx': dbh,
             'p10_height_rel': z_percentiles_rel[0],
-            'p50_height_rel': z_percentiles_rel[2], # Median height
-            'p90_height_rel': z_percentiles_rel[4],
         }
 
     except Exception as e:
