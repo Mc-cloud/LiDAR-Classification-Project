@@ -1,4 +1,9 @@
-laspy
+os
+pandas
+scikit-learn
+matplotlib
+seaborn
 lazrs
-numpy
-pyvista
+laspy
+tqdm
+
