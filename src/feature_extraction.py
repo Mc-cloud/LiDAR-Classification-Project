@@ -4,8 +4,135 @@ import os
 import pandas as pd
 import laspy
 from concurrent.futures import ProcessPoolExecutor
-import numpy as np
 from tqdm import tqdm
+from skimage.measure import EllipseModel
+from scipy.optimize import minimize
+import numpy as np
+
+def fit_crown_profiles(crown_points, n_angles=8):
+    """
+    Projette les points couronne sur N plans verticaux et fitte
+    triangle, ellipse et rectangle. Retourne des features de forme
+    décorrélées de la taille (normalisées par h_crown et w_crown).
+    """
+    if len(crown_points) < 10:
+        return _empty_profile_features()
+
+    z = crown_points[:, 2]
+    h_crown = np.ptp(z)
+    if h_crown < 0.1:
+        return _empty_profile_features()
+
+    angles = np.linspace(0, np.pi, n_angles, endpoint=False)
+
+    all_features = []
+    for angle in angles:
+        # Projection sur l'axe perpendiculaire à `angle`
+        proj = (crown_points[:, 0] * np.cos(angle)
+              + crown_points[:, 1] * np.sin(angle))
+        profile = np.column_stack([proj, z])
+
+        feats = _fit_single_profile(profile)
+        if feats is not None:
+            all_features.append(feats)
+
+    if not all_features:
+        return _empty_profile_features()
+
+    # Moyenne sur tous les profils → invariance à la rotation
+    keys = all_features[0].keys()
+    return {k: float(np.mean([f[k] for f in all_features])) for k in keys}
+
+
+def _fit_single_profile(profile):
+    """Fitte triangle, ellipse et rectangle sur un profil 2D (N,2)."""
+    x, z = profile[:, 0], profile[:, 1]
+    z_min, z_max = z.min(), z.max()
+    h = z_max - z_min
+    w = np.ptp(x)
+    if h < 0.01 or w < 0.01:
+        return None
+
+    # ── 1. Rectangle ──────────────────────────────────────────────
+    bbox_area = h * w
+    # remplissage : fraction des cellules d'une grille 20x20 occupées
+    grid_res = 20
+    xi = np.floor((x - x.min()) / w * (grid_res - 1)).astype(int)
+    zi = np.floor((z - z_min) / h * (grid_res - 1)).astype(int)
+    occupied = len(set(zip(xi, zi)))
+    rect_fill = occupied / (grid_res ** 2)
+    wh_ratio = w / h  # normalisé → indépendant de la taille
+
+    # ── 2. Ellipse (RANSAC) ───────────────────────────────────────
+    try:
+        model = EllipseModel()
+        profile_norm = np.column_stack([(x - x.mean()) / w,
+                                        (z - z.mean()) / h])
+        model.estimate(profile_norm)
+        xc, yc, a, b, theta = model.params
+        ellipse_ab_ratio = min(a, b) / max(a, b) if max(a, b) > 0 else 0
+        ellipse_ecc = np.sqrt(1 - (min(a,b)/max(a,b))**2) if max(a,b)>0 else 1
+        residuals = model.residuals(profile_norm)
+        ellipse_rmse = np.sqrt(np.mean(residuals**2))
+    except Exception:
+        ellipse_ab_ratio = 0
+        ellipse_ecc = 1
+        ellipse_rmse = 1.0
+
+    # ── 3. Triangle isocèle ───────────────────────────────────────
+    def triangle_residuals(params):
+        apex_x, half_w = params
+        # Bords gauche et droit du triangle
+        # z normalisé entre 0 (base) et 1 (apex)
+        z_norm = (z - z_min) / h
+        x_norm = (x - x.min()) / w
+        apex_xn = (apex_x - x.min()) / w
+        hw_n = half_w / w
+        # Distance de chaque point au bord le plus proche
+        left_x  = apex_xn - hw_n * (1 - z_norm)
+        right_x = apex_xn + hw_n * (1 - z_norm)
+        dist_left  = np.abs(x_norm - left_x)
+        dist_right = np.abs(x_norm - right_x)
+        dist_inside = np.minimum(dist_left, dist_right)
+        return np.sum(dist_inside**2)
+
+    try:
+        x0 = [x.mean(), w / 2]
+        bounds = [(x.min(), x.max()), (0.01, w)]
+        res = minimize(triangle_residuals, x0, bounds=bounds, method='L-BFGS-B')
+        _, half_w_fit = res.x
+        # Angle d'apex en radians (normalisé → invariant à la taille)
+        apex_angle = 2 * np.arctan(half_w_fit / h)
+        triangle_rmse = np.sqrt(res.fun / len(x))
+    except Exception:
+        apex_angle = np.pi / 2
+        triangle_rmse = 1.0
+
+    # ── Asymétrie du profil ───────────────────────────────────────
+    x_center = x.mean()
+    left_pts  = x[x < x_center]
+    right_pts = x[x >= x_center]
+    asymmetry = (abs(len(left_pts) - len(right_pts))
+                 / len(x)) if len(x) > 0 else 0
+
+    return {
+        'wh_ratio':          wh_ratio,
+        'rect_fill_ratio':   rect_fill,
+        'ellipse_ab_ratio':  ellipse_ab_ratio,
+        'ellipse_ecc':       ellipse_ecc,
+        'ellipse_rmse':      ellipse_rmse,
+        'apex_angle_rad':    apex_angle,      # petit = conifère pointu
+        'triangle_rmse':     triangle_rmse,
+        'profile_asymmetry': asymmetry,
+    }
+
+
+def _empty_profile_features():
+    return {k: 0.0 for k in [
+        'wh_ratio', 'rect_fill_ratio', 'ellipse_ab_ratio',
+        'ellipse_ecc', 'ellipse_rmse', 'apex_angle_rad',
+        'triangle_rmse', 'profile_asymmetry'
+    ]}
 
 def get_robust_dbh(points, z_min, z_max):
     """
@@ -136,57 +263,35 @@ def extract_tree_features(laz_file_path):
         num_points = len(points)
         point_density = num_points / tree_height
 
-        # ── Normalisations allométriques ──────────────────────────────────
-        h2 = tree_height ** 2
-        h3 = tree_height ** 3
-
-        # Volumes : croissance cubique → diviser par h³
-        crown_volume_norm = crown_volume / h3 if h3 > 0 else 0
-        tree_volume_norm  = tree_volume  / h3 if h3 > 0 else 0
-
-        # Aires : croissance quadratique → diviser par h²
-        crown_area_norm = crown_area / h2 if h2 > 0 else 0
-        tree_area_norm  = tree_area  / h2 if h2 > 0 else 0
-
-        # Dimensions linéaires → diviser par h
-        crown_diameter_norm = crown_diameter / tree_height if tree_height > 0 else 0
-        stem_diameter_norm  = stem_diameter  / tree_height if tree_height > 0 else 0
-        trunk_height_norm   = trunk_height   / tree_height if tree_height > 0 else 0
-
-        # Densité de points : déjà par unité de hauteur
-        # point_density = num_points / tree_height  (inchangée)
+        # ── Nouvelles features de forme de profil ──────────────────
+        profile_feats = fit_crown_profiles(crown_points)  # 👈 appel ici
+        # ───────────────────────────────────────────────────────────
 
         return {
             'filename': os.path.basename(laz_file_path),
             'height': tree_height,
-
-            # Features brutes (utiles pour debug / modèles absolus)
-            'crown_volume':   crown_volume,
-            'tree_volume':    tree_volume,
-            'tree_area':      tree_area,
-            'crown_area':     crown_area,
+            'crown_volume': crown_volume,
+            'tree_volume': tree_volume,
+            'tree_area': tree_area,
             'crown_diameter': crown_diameter,
-            'stem_diameter':  stem_diameter,
-            'trunk_height':   trunk_height,
-
-            # Features normalisées (décorrélées de la hauteur)
-            'crown_volume_norm':   crown_volume_norm,   # compacité 3D
-            'tree_volume_norm':    tree_volume_norm,    # forme 3D globale
-            'crown_area_norm':     crown_area_norm,     # surface de houppier rel.
-            'tree_area_norm':      tree_area_norm,      # enveloppe rel.
-            'crown_diameter_norm': crown_diameter_norm, # ratio large/haut
-            'stem_diameter_norm':  stem_diameter_norm,  # robustesse du tronc
-            'trunk_height_norm':   trunk_height_norm,   # = fût relatif
-
-            # Déjà adimensionnels — inchangés
-            'point_density':   point_density,
-            'crown_ratio':     crown_ratio,
-            'stem_quality':    stem_quality,
-            'is_sapling':      1 if tree_height < 2.0 else 0,
-            'p10_height_rel':  z_percentiles_rel[0],
-            'p50_height_rel':  z_percentiles_rel[1],
-            'p90_height_rel':  z_percentiles_rel[2],
+            'crown_area': crown_area,
+            'point_density': point_density,
+            'crown_ratio': crown_ratio,
+            'stem_diameter': stem_diameter,
+            'stem_quality': stem_quality,
+            'trunk_height': trunk_height,
+            'is_sapling': 1 if tree_height < 2.0 else 0,
+            'p10_height_rel': z_percentiles_rel[0],
+            'p50_height_rel': z_percentiles_rel[1],
+            'p90_height_rel': z_percentiles_rel[2],
+            # 👇 les features de profil s'ajoutent ici automatiquement
+            # elles seront nommées profile_wh_ratio, profile_apex_angle_rad, etc.
+            **{f'profile_{k}': v for k, v in profile_feats.items()},
         }
+
+    except Exception as e:
+        print(f"Error processing {laz_file_path}: {e}")
+        return None
 
     except Exception as e:
         print(f"Error processing {laz_file_path}: {e}")
