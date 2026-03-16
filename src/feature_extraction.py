@@ -87,12 +87,8 @@ def get_trunk_height(stem_diameter, points, z_max, z_min):
     return tree_height
 
 def extract_tree_features(laz_file_path):
-    """
-    Extracts geometric features from a .laz file representing a single tree.
-    """
     try:
         las = laspy.read(laz_file_path)
-
         points = np.vstack((las.x, las.y, las.z)).transpose()
 
         if points.shape[0] < 10:
@@ -100,26 +96,23 @@ def extract_tree_features(laz_file_path):
 
         z_max = np.max(points[:, 2])
         z_min = np.min(points[:, 2])
-
         tree_height = z_max - z_min
 
         z_coords = points[:, 2]
         z_percentiles = np.percentile(z_coords, [10, 50, 90])
-        
         z_percentiles_rel = (z_percentiles - z_min) / tree_height
-        
-        stem_diameter, stem_quality = get_robust_dbh(points, z_min, z_max)
 
+        stem_diameter, stem_quality = get_robust_dbh(points, z_min, z_max)
         trunk_height = get_trunk_height(stem_diameter, points, z_max, z_min)
 
         crown_mask = points[:, 2] > (z_min + trunk_height)
         crown_points = points[crown_mask]
 
-        try :
+        try:
             hull = ConvexHull(points)
-            tree_volume=hull.volume
+            tree_volume = hull.volume
             tree_area = hull.area
-        except :
+        except:
             tree_volume = 0
             tree_area = 0
 
@@ -131,38 +124,73 @@ def extract_tree_features(laz_file_path):
             except:
                 crown_volume = 0
                 crown_area = 0
-            
             x_spread = np.ptp(crown_points[:, 0])
             y_spread = np.ptp(crown_points[:, 1])
             crown_diameter = max(x_spread, y_spread)
-            
         else:
             crown_volume = 0
             crown_area = 0
-            crown_diameter = 0  
-        
-        crown_ratio = crown_volume / tree_volume if tree_area > 0 else 0
+            crown_diameter = 0
+
+        crown_ratio = crown_volume / tree_volume if tree_volume > 0 else 0
         num_points = len(points)
-        point_density = num_points/tree_height
+        point_density = num_points / tree_height
+
+        # ── Normalisations allométriques ──────────────────────────────────
+        h2 = tree_height ** 2
+        h3 = tree_height ** 3
+
+        # Volumes : croissance cubique → diviser par h³
+        crown_volume_norm = crown_volume / h3 if h3 > 0 else 0
+        tree_volume_norm  = tree_volume  / h3 if h3 > 0 else 0
+
+        # Aires : croissance quadratique → diviser par h²
+        crown_area_norm = crown_area / h2 if h2 > 0 else 0
+        tree_area_norm  = tree_area  / h2 if h2 > 0 else 0
+
+        # Dimensions linéaires → diviser par h
+        crown_diameter_norm = crown_diameter / tree_height if tree_height > 0 else 0
+        stem_diameter_norm  = stem_diameter  / tree_height if tree_height > 0 else 0
+        trunk_height_norm   = trunk_height   / tree_height if tree_height > 0 else 0
+
+        # Densité de points : déjà par unité de hauteur
+        # point_density = num_points / tree_height  (inchangée)
 
         return {
             'filename': os.path.basename(laz_file_path),
             'height': tree_height,
-            'crown_volume' : crown_volume,
-            'tree_volume' : tree_volume,
-            'tree_area' : tree_area,
-            'crown_diameter' : crown_diameter,
-            'crown_area' : crown_area,
-            'point_density' : point_density,
-            'crown_ratio' : crown_ratio,
-            'stem_diameter' : stem_diameter,
-            'stem_quality' : stem_quality,
-            'trunk_height' : trunk_height,
-            'is_sapling' : 1 if tree_height < 2.0 else 0,
-            'p10_height_rel': z_percentiles_rel[0],
-            'p90_height_rel' : z_percentiles_rel[2],
-            'p50_height_rel' : z_percentiles_rel[1],
+
+            # Features brutes (utiles pour debug / modèles absolus)
+            'crown_volume':   crown_volume,
+            'tree_volume':    tree_volume,
+            'tree_area':      tree_area,
+            'crown_area':     crown_area,
+            'crown_diameter': crown_diameter,
+            'stem_diameter':  stem_diameter,
+            'trunk_height':   trunk_height,
+
+            # Features normalisées (décorrélées de la hauteur)
+            'crown_volume_norm':   crown_volume_norm,   # compacité 3D
+            'tree_volume_norm':    tree_volume_norm,    # forme 3D globale
+            'crown_area_norm':     crown_area_norm,     # surface de houppier rel.
+            'tree_area_norm':      tree_area_norm,      # enveloppe rel.
+            'crown_diameter_norm': crown_diameter_norm, # ratio large/haut
+            'stem_diameter_norm':  stem_diameter_norm,  # robustesse du tronc
+            'trunk_height_norm':   trunk_height_norm,   # = fût relatif
+
+            # Déjà adimensionnels — inchangés
+            'point_density':   point_density,
+            'crown_ratio':     crown_ratio,
+            'stem_quality':    stem_quality,
+            'is_sapling':      1 if tree_height < 2.0 else 0,
+            'p10_height_rel':  z_percentiles_rel[0],
+            'p50_height_rel':  z_percentiles_rel[1],
+            'p90_height_rel':  z_percentiles_rel[2],
         }
+
+    except Exception as e:
+        print(f"Error processing {laz_file_path}: {e}")
+        return None
 
     except Exception as e:
         print(f"Error processing {laz_file_path}: {e}")
