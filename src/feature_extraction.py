@@ -9,15 +9,13 @@ from tqdm import tqdm
 
 def get_robust_dbh(points, z_min, z_max):
     """
-    Extracts the trunk's height using ransac algorithm
+    Extracts the trunk's dbh using ransac algorithm
     """
-
     tree_height = z_max - z_min
 
-    if tree_height > 2.0:
-        target_z_start = z_min + 1.3
-        target_z_end = z_min + 1.5
-    
+    if tree_height > 3.0:
+        target_z_start = z_min + 1.2
+        target_z_end = z_min + 1.4
     else :
         target_z_start = z_min + (0.2*tree_height)
         target_z_end = z_min + 0.4*tree_height
@@ -26,6 +24,7 @@ def get_robust_dbh(points, z_min, z_max):
     slice_points = points[mask][:,:2]
 
     n_points = len(slice_points)
+    print(n_points)
 
     if n_points < 5:
         return 0, 0
@@ -115,6 +114,8 @@ def extract_tree_features(laz_file_path):
         crown_mask = points[:, 2] > (z_min + trunk_height)
         crown_points = points[crown_mask]
 
+        foliage_barycenter = np.mean(crown_points, axis = 0)
+
         try :
             hull = ConvexHull(points)
             tree_volume=hull.volume
@@ -148,10 +149,11 @@ def extract_tree_features(laz_file_path):
         return {
             'filename': os.path.basename(laz_file_path),
             'height': tree_height,
-            'crown_volume' : crown_volume,
+            'crown_volume' : crown_volume/tree_height,
             'tree_volume' : tree_volume,
             'tree_area' : tree_area,
-            'crown_diameter' : crown_diameter,
+            'crown_shape' : crown_diameter/(tree_height-trunk_height),
+            'slenderness_ratio' : tree_height/trunk_height,
             'crown_area' : crown_area,
             'point_density' : point_density,
             'crown_ratio' : crown_ratio,
