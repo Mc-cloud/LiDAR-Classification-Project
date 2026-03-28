@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+processed_data/
+processed_data_FPS/
+FPS_32k/
+*.pth
+*.png
+*.pt
+jobs_output/
+slurmlogs/
+*.laz
+wandb/
+# Virtual environments
+.venv
