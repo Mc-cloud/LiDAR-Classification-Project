@@ -1,0 +1,63 @@
+KNN Species Classifier
+======================
+PCF dataset  : data/pcf_dataset.csv
+Features     : 8 PCF radii (pcf_t_*)
+Classes      : 33 species
+Train / Test : 14165 / 3542
+k            : 5
+Distance     : L2 on PCF vector = sum_i(g_new(r_i) - g_k(r_i))^2
+
+CV accuracy (5-fold) : 0.3271 ± 0.0115
+Test accuracy        : 0.3382
+
+Classification report:
+                       precision    recall  f1-score   support
+
+           Abies_alba       0.00      0.00      0.00        24
+       Acer_campestre       0.25      0.46      0.32       248
+  Acer_pseudoplatanus       0.13      0.20      0.16       115
+       Acer_saccharum       0.04      0.05      0.04        22
+       Betula_pendula       0.08      0.08      0.08       147
+     Carpinus_betulus       0.21      0.23      0.22       249
+     Corylus_avellana       0.00      0.00      0.00         9
+   Crataegus_monogyna       0.09      0.07      0.07        46
+   Eucalyptus_miniata       0.33      0.18      0.23        56
+   Euonymus_europaeus       0.00      0.00      0.00        21
+      Fagus_sylvatica       0.28      0.30      0.29       496
+Fraxinus_angustifolia       0.00      0.00      0.00        21
+   Fraxinus_excelsior       0.00      0.00      0.00        25
+        Larix_decidua       0.17      0.05      0.08        19
+          Picea_abies       0.33      0.34      0.33       397
+         Picea_glauca       0.40      0.55      0.46        33
+       Pinus_contorta       0.10      0.05      0.06        64
+          Pinus_nigra       0.40      0.31      0.35        93
+       Pinus_pinaster       0.25      0.05      0.08        21
+        Pinus_radiata       0.00      0.00      0.00        19
+       Pinus_resinosa       0.11      0.03      0.05        34
+     Pinus_sylvestris       0.68      0.72      0.70       659
+    Populus_deltoides       0.00      0.00      0.00        11
+  Populus_tremuloides       0.00      0.00      0.00        22
+         Prunus_avium       0.00      0.00      0.00         8
+Pseudotsuga_menziesii       0.27      0.20      0.23       132
+      Quercus_faginea       0.41      0.54      0.47       203
+         Quercus_ilex       0.29      0.22      0.25        60
+      Quercus_petraea       0.12      0.07      0.09        72
+        Quercus_robur       0.00      0.00      0.00        39
+        Quercus_rubra       0.00      0.00      0.00        32
+        Tilia_cordata       0.18      0.09      0.12        89
+         Ulmus_laevis       0.09      0.02      0.03        56
+
+             accuracy                           0.34      3542
+            macro avg       0.16      0.15      0.14      3542
+         weighted avg       0.32      0.34      0.32      3542
+
+
+Confusion matrix (rows=true, cols=predicted):
+Classes: ['Abies_alba', 'Acer_campestre', 'Acer_pseudoplatanus', 'Acer_saccharum', 'Betula_pendula', 'Carpinus_betulus', 'Corylus_avellana', 'Crataegus_monogyna', 'Eucalyptus_miniata', 'Euonymus_europaeus', 'Fagus_sylvatica', 'Fraxinus_angustifolia', 'Fraxinus_excelsior', 'Larix_decidua', 'Picea_abies', 'Picea_glauca', 'Pinus_contorta', 'Pinus_nigra', 'Pinus_pinaster', 'Pinus_radiata', 'Pinus_resinosa', 'Pinus_sylvestris', 'Populus_deltoides', 'Populus_tremuloides', 'Prunus_avium', 'Pseudotsuga_menziesii', 'Quercus_faginea', 'Quercus_ilex', 'Quercus_petraea', 'Quercus_robur', 'Quercus_rubra', 'Tilia_cordata', 'Ulmus_laevis']
+[[  0   1   1 ...   0   0   0]
+ [  1 113   7 ...   0   8   2]
+ [  0   6  23 ...   0   1   2]
+ ...
+ [  1   0   2 ...   0   0   0]
+ [  0  22   2 ...   0   8   0]
+ [  0  26   2 ...   0   0   1]]
