@@ -1,2 +1,4 @@
 data/*
 *.pyc
+*.laz
+features_final_merged.csv
