@@ -3,9 +3,29 @@ from skimage.measure import CircleModel, ransac
 import os
 import pandas as pd
 import laspy
+import alphashape
+import trimesh
 from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 from tqdm import tqdm
+
+def get_alpha_shape(points, alpha = 0.5) :
+    if len(points) < 4:
+        return 0.0, 0.0
+    
+    try :
+        mesh = alphashape.alphashape(points, alpha)
+
+        if not isinstance(mesh, trimesh.Trimesh):
+            return 0.0, 0.0
+        
+        volume = abs(mesh.volume)
+        area = mesh.area
+
+        return volume, area
+    
+    except Exception as e:
+        return 0.0, 0.0
 
 def get_robust_dbh(points, z_min, z_max):
     """
@@ -116,22 +136,21 @@ def extract_tree_features(laz_file_path):
 
         foliage_barycenter = np.mean(crown_points, axis = 0)
 
-        try :
-            hull = ConvexHull(points)
-            tree_volume=hull.volume
-            tree_area = hull.area
-        except :
-            tree_volume = 0
-            tree_area = 0
+        alpha_val = 1.0
+
+        tree_volume, tree_area = get_alpha_shape(points, alpha = alpha_val)
 
         if len(crown_points) > 4:
             try:
-                hull = ConvexHull(crown_points)
-                crown_volume = hull.volume
-                crown_area = hull.area
+                crown_volume, crown_area = get_alpha_shape(crown_points, alpha = alpha_val)
+
+                x_spread, y_spread = np.ptp(crown_points[:,0]), np.ptp(crown_points[:, 1])
+                crown_diameter = max(x_spread, y_spread)
+
             except:
                 crown_volume = 0
                 crown_area = 0
+                crown_diameter
             
             x_spread = np.ptp(crown_points[:, 0])
             y_spread = np.ptp(crown_points[:, 1])
@@ -164,6 +183,7 @@ def extract_tree_features(laz_file_path):
             'p10_height_rel': z_percentiles_rel[0],
             'p90_height_rel' : z_percentiles_rel[2],
             'p50_height_rel' : z_percentiles_rel[1],
+            'crown_diameter' : crown_diameter
         }
 
     except Exception as e:
