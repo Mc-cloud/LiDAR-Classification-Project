@@ -1,4 +1,4 @@
 *.laz
 *.pyc
-features_final_merge.csv
+features_final_merged.csv
 data/tree_features.csv
