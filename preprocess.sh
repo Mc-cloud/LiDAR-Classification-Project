@@ -13,4 +13,4 @@
 
 source .venv/bin/activate
 
-python3 -u convert_to_pt.py
+python3 -u testGBM.py
