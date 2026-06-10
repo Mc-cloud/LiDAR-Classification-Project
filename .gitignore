@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+*.npz
 processed_data/
 processed_data_FPS/
 FPS_32k/
@@ -17,3 +18,8 @@ slurmlogs/
 wandb/
 # Virtual environments
 .venv
+*.sh
+features_final_merged.csv
+tableau_features.csv
+data/tree_features.csv
+GBM_experience/GBM_models/*
