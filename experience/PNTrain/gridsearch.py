@@ -1,9 +1,9 @@
 import optuna
 import torch
 import torch.nn as nn
-from PointNetTraining.Dataset import TreeLiDARDataset
+from Dataset import TreeLiDARDataset
 from torch.utils.data import DataLoader
-from models.pointnet2_cls_msg import get_model
+from pointnet2_cls_msg import get_model
 from sklearn.model_selection import train_test_split
 import os
 import pandas as pd
@@ -11,7 +11,7 @@ import pandas as pd
 NUM_CLASSES = 33
 device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
 
-df = pd.read_csv("train_data/labels.csv")
+df = pd.read_csv("../../data/labels.csv")
 
 noms_uniques = sorted(df['species'].unique()) 
 mapping_species = {nom: i for i, nom in enumerate(noms_uniques)}

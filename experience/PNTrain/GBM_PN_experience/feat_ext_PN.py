@@ -4,13 +4,13 @@ import numpy as np
 import pandas as pd
 import lightgbm as lgb
 import re
-from models.pointnet2_cls_msg import get_model
+from PNTrain.pointnet2_cls_msg import get_model
 from torch.utils.data import DataLoader, Dataset
 
 # --- CONFIGURATION ---
 MODEL_PN_PATH = 'best_model.pth'
-TRAIN_LABEL_CSV = "train_data/labels.csv" # Indispensable pour l'ordre des classes
-TEST_PT_DIR = 'FPS_32k_test'
+TRAIN_LABEL_CSV = "../../data/labels.csv" # Indispensable pour l'ordre des classes
+TEST_PT_DIR = '../../data/FPS_32k_test'
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # 1. RECONSTRUCTION DU MAPPING (Ordre d'entraînement)

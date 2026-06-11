@@ -506,8 +506,8 @@ def run_cv(cfg: CVConfig):
         # ── PointNet++ ─────────────────────────────────────────────────────
         if "PointNet" in cfg.methods:
             print("  ▶ PointNet++")
-            from PointNetTraining.Dataset import TreeLiDARDataset, PointCloudTransforms  # noqa: F401
-            from PointNetArch.pointnet2_cls_msg import get_model, get_loss            # noqa: F401
+            from experience.PNTrain.Dataset import TreeLiDARDataset, PointCloudTransforms  # noqa: F401
+            from experience.PNTrain.pointnet2_cls_msg import get_model, get_loss            # noqa: F401
 
             tr_ds = TreeLiDARDataset(
                 pn_files[train_idx].tolist(), pn_labels[train_idx].tolist(),
