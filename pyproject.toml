@@ -1,24 +1,28 @@
 [project]
-name = "pointnetlidar"
+name = "lidar-classification"
 version = "0.1.0"
-description = "Add your description here"
+description = "Combined LiDAR Classification project featuring PointNet and DINOv3"
 readme = "README.md"
 requires-python = ">=3.12"
+
 dependencies = [
+    "huggingface-hub>=1.16.1",
     "laspy>=2.7.0",
     "lazrs>=0.8.1",
     "lightgbm>=4.6.0",
-    "matplotlib>=3.10.8",
-    "numpy>=2.4.3",
+    "matplotlib>=3.10.9",
+    "numpy>=2.4.6",
     "optuna>=4.8.0",
-    "pandas>=3.0.1",
+    "pandas>=3.0.3",
     "scikit-learn>=1.8.0",
     "seaborn>=0.13.2",
     "setuptools>=82.0.1",
     "tensorboard>=2.20.0",
-    "torch>=2.10.0",
+    "torch>=2.12.0",
     "torch-optim>=0.0.4",
     "torch-utils>=0.1.2",
+    "torchvision>=0.27.0",
     "tqdm>=4.67.3",
-    "wandb>=0.25.1",
+    "transformers>=5.9.0",
+    "wandb>=0.27.0",
 ]

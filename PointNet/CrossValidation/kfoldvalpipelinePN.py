@@ -5,16 +5,14 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import numpy as np
 import pandas as pd
-import wandb
 import lightgbm as lgb
 import scipy.stats as st
-from utils.kfoldutils import *
 
 from sklearn.model_selection import StratifiedKFold, StratifiedGroupKFold
 from sklearn.metrics import precision_recall_fscore_support
 
-from Dataset import TreeLiDARDataset, PointCloudTransforms
-from models.pointnet2_cls_msg import get_model, get_loss
+from experience.PointNet.PointNetTraining.Dataset import TreeLiDARDataset, PointCloudTransforms
+from experience.PointNet.PointNetArch.pointnet2_cls_msg import get_model, get_loss
 
 def main():
     CSV_PATH = 'data/train_data/labels.csv'
@@ -27,8 +25,6 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
 
     CHECKPOINT_FILE = "cv_checkpoint.pt"
-
-    wandb.init(project="PointNet-LiDAR-CV", name="End-to-End KFold")
 
     tree_paths, labels, spatial_groups, noms_uniques = prepare_spatial_data(CSV_PATH)
 

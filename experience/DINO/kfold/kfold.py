@@ -1,5 +1,4 @@
-from kfoldutils import *
-import wandb
+from experience.DINO.kfold.kfoldutils import *
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import TensorDataset
 
@@ -12,8 +11,6 @@ def main():
     N_SPLITS = 25
     device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
     MODELS_TO_RUN = ["MLP"]
-
-    wandb.init(project="DINOv3-LiDAR-CV", name="Comparaison-Modeles-Geo-Fusion")
 
     # --- 1. CHARGEMENT DES DONNÉES DINO ---
     print(f"⏳ Chargement des embeddings DINO depuis {FEATURES_PT}...")
@@ -223,7 +220,6 @@ def main():
     print(f"✅ Fichier sauvegardé avec succès : {PREDICTIONS_CSV}")
 
     compute_confidence_intervals(metrics_dict, noms_uniques, N_SPLITS)
-    wandb.finish()
 
 if __name__ == "__main__":
     main()

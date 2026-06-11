@@ -1,7 +1,7 @@
 import optuna
 import torch
 import torch.nn as nn
-from Dataset import TreeLiDARDataset
+from PointNetTraining.Dataset import TreeLiDARDataset
 from torch.utils.data import DataLoader
 from models.pointnet2_cls_msg import get_model
 from sklearn.model_selection import train_test_split

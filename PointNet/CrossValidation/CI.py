@@ -5,8 +5,8 @@ import pandas as pd
 import os
 
 # --- 1. Configuration & Mapping ---
-csv_path = 'train_data/labels.csv'
-checkpoint_path = "cv_checkpoint.pt"
+csv_path = '../data/labels.csv'
+checkpoint_path = "cv_checkpoint_pointnet.pt"
 n_folds = 20
 
 # Reproducing your exact species mapping logic

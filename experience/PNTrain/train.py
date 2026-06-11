@@ -7,14 +7,12 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 import numpy as np
 import pandas as pd
-import wandb
-
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 torch.set_float32_matmul_precision('high')
 
 
-from Dataset import TreeLiDARDataset, PointCloudTransforms
+from PointNetTraining.Dataset import TreeLiDARDataset, PointCloudTransforms
 
 from PointNetArch.pointnet2_cls_msg import get_model, get_loss
 
