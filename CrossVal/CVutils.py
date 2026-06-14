@@ -57,8 +57,8 @@ class CVConfig:
     pointnet_num_points: int = 16384
 
     # ── DINO ─────────────────────────────────────────────────────────────────
-    dino_embeddings_pt: str = "../DINO/dinov3_tree_embeddings.pt"
-    dino_geo_npz: str = "../DINO/dev_geometry_features.npz"
+    dino_embeddings_pt: str = "../experience/DINO/dinov3_tree_embeddings.pt"
+    dino_geo_npz: str = "../experience/DINO/dev_geometry_features.npz"
     dino_mlp_epochs: int = 40
     dino_mlp_batch_size: int = 128
 

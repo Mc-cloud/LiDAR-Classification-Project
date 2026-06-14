@@ -43,8 +43,6 @@ from sklearn.svm import SVC
 from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 from CVutils import *
 
-
-
 # ============================================================
 # ENTRY POINT
 # ============================================================
@@ -53,10 +51,10 @@ if __name__ == "__main__":
     cfg = CVConfig(
         methods=["DINO_MLP", "DINO_SVM", "DINO_LogReg"],  # add "PointNet", "LightGBM" as needed
         n_splits=25,
-        labels_csv="../data/train_data/labels.csv",
-        dino_embeddings_pt="../DINO/dinov3_tree_embeddings.pt",
-        dino_geo_npz="../DINO/dev_geometry_features.npz",
-        lgbm_features_csv="../data/tableau_features.csv",
-        pointnet_pt_dir="../PointNet/data/FPS_32k",
+        labels_csv="data/train_data/labels.csv",
+        dino_embeddings_pt="experience/DINO/dinov3_tree_embeddings.pt",
+        dino_geo_npz="experience/DINO/dev_geometry_features.npz",
+        lgbm_features_csv="data/tableau_features.csv",
+        pointnet_pt_dir="PointNet/data/FPS_32k",
     )
     run_cv(cfg)

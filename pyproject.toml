@@ -3,7 +3,8 @@ name = "lidar-classification"
 version = "0.1.0"
 description = "Combined LiDAR Classification project featuring PointNet and DINOv3"
 readme = "README.md"
-requires-python = ">=3.12"
+# 1. On limite à Python 3.12 et 3.13 (PyTorch n'est pas prêt pour 3.14)
+requires-python = ">=3.12, <3.14" 
 
 dependencies = [
     "huggingface-hub>=1.16.1",
@@ -16,13 +17,14 @@ dependencies = [
     "pandas>=3.0.3",
     "scikit-learn>=1.8.0",
     "seaborn>=0.13.2",
-    "setuptools>=82.0.1",
+    # 2. On descend la version de setuptools pour satisfaire PyTorch
+    "setuptools<82", 
     "tensorboard>=2.20.0",
-    "torch>=2.12.0",
+    # 3. J'ai corrigé les versions de PyTorch (2.12 et 0.27 n'existent pas encore, c'était sûrement des coquilles)
+    "torch>=2.2.0", 
     "torch-optim>=0.0.4",
     "torch-utils>=0.1.2",
-    "torchvision>=0.27.0",
+    "torchvision>=0.17.0",
     "tqdm>=4.67.3",
     "transformers>=5.9.0",
-    "wandb>=0.27.0",
 ]

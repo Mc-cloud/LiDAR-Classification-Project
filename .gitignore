@@ -3,3 +3,5 @@
 *.laz
 features_final_merged.csv
 data/tree_features.csv
+.venv
+*.pt
