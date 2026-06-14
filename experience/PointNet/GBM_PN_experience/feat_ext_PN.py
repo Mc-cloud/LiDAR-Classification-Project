@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import lightgbm as lgb
 import re
-from PNTrain.pointnet2_cls_msg import get_model
+from pointnet2_cls_msg import get_model
 from torch.utils.data import DataLoader, Dataset
 
 # --- CONFIGURATION ---

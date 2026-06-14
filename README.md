@@ -1,93 +1,88 @@
-# LIDAR-Project
+# LiDAR Tree Species Classification
 
+Classifying individual trees by species from airborne/terrestrial LiDAR point clouds (`.laz`/`.las`), using a mix of geometric feature engineering, a Pair Correlation Function (PCF) descriptor, gradient boosting (LightGBM), PointNet++ on raw point clouds, and a DINOv3-embedding-based multimodal MLP. A unified cross-validation pipeline compares all methods on the same folds.
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Project structure
 
 ```
-cd existing_repo
-git remote add origin https://gitlab-student.centralesupelec.fr/matheo.cahitte/lidar-project.git
-git branch -M main
-git push -uf origin main
+.
+├── data/                     # Datasets (raw point clouds, labels, extracted features)
+│   ├── labels.csv
+│   ├── pcf_dataset.csv
+│   ├── tableau_features.csv
+│   ├── train_data/           # Training .laz files + labels/feature CSVs
+│   └── test_data/            # Test .laz files (empty placeholder, see below)
+├── utils/
+│   ├── feature_extraction.py # Extract geometric tree features from .laz -> tableau_features.csv
+│   ├── projection2D.py       # Project point clouds to 2D multi-view images (for DINO)
+│   └── convert_to_pt.py       # Farthest-point-sample + normalize point clouds -> .pt tensors
+├── experience/
+│   ├── pcf/                  # Pair Correlation Function pipeline + KNN classifier
+│   ├── ml/                   # Mutual information / KNN / LightGBM experiments on geometric features
+│   ├── PointNet/             # PointNet++ training, grid search, GBM-on-PointNet experiments
+│   ├── DINO/                 # DINOv3 embedding extraction, MLP training, k-fold CV, inference
+│   └── InformationTheory/    # Information-theoretic feature analysis notebook
+├── CrossVal/
+│   ├── CV_pipeline.py         # Unified cross-validation entry point (all methods, same folds)
+│   ├── CVutils.py              # Models, training loops, config dataclass
+│   └── results/                # Saved checkpoints and per-fold predictions
+├── plots/                     # Confusion matrix, correlation matrix figures
+├── first_visu.ipynb            # 3D point cloud visualization (PyVista) + DBH/trunk debugging
+├── pyproject.toml / uv.lock    # Project dependencies (managed with uv)
+└── test_predictions.csv        # Example output predictions
 ```
 
-## Integrate with your tools
+## Setup
 
-* [Set up project integrations](https://gitlab-student.centralesupelec.fr/matheo.cahitte/lidar-project/-/settings/integrations)
+This project uses [uv](https://github.com/astral-sh/uv) for dependency management (Python 3.12 or 3.13).
 
-## Collaborate with your team
+```bash
+uv sync
+```
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+This installs the dependencies listed in `pyproject.toml`/`uv.lock`, including PyTorch, scikit-learn, LightGBM, transformers, laspy, etc.
 
-## Test and Deploy
+> **Note:** several scripts import packages that are **not** currently listed in `pyproject.toml` (`alphashape`, `trimesh`, `scikit-image`, `numba`, `pyvista`, `joblib`). You'll need to add these before those scripts will run — see the checklist below.
 
-Use the built-in continuous integration in GitLab.
+### GPU
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+PointNet++ training and DINOv3 embedding extraction are designed to run on a CUDA GPU (`torch.cuda.is_available()` is checked, falling back to CPU). DINOv3-ViT7B is large — extracting embeddings on CPU is impractical.
 
-***
+## Data
 
-# Editing this README
+Place raw `.laz`/`.las` tree point clouds and the corresponding `labels.csv` (columns: `treeID`, `species`, `genus`, `dataset`, `data_type`, `tree_H`, `filename`) under `data/train_data/`. `data/test_data/` is currently an empty placeholder — add your test `.laz` files there.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Pre-computed feature tables are included:
+- `data/tableau_features.csv` — geometric features (height, crown volume/area, stem diameter, etc.) per tree, produced by `utils/feature_extraction.py`.
+- `data/pcf_dataset.csv` — Pair Correlation Function curves per tree, produced by `experience/pcf/compute_pcf_dataset.py`.
 
-## Suggestions for a good README
+## Pipeline overview
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+1. **Feature extraction** (`utils/feature_extraction.py`) — reads `.laz` files, computes geometric features (alpha-shape volume/area, robust DBH via RANSAC, trunk/crown split, crown ratio, etc.), writes `data/tableau_features.csv`.
+2. **PCF computation** (`experience/pcf/compute_pcf_dataset.py`) — computes 3D pair correlation function curves per tree, writes `data/pcf_dataset.csv`.
+3. **2D projection** (`utils/projection2D.py`) — projects each tree's point cloud into 5 multi-view 2D images (1 top-down + 4 side views) for the DINOv3 pipeline.
+4. **Point cloud preprocessing** (`utils/convert_to_pt.py`) — farthest-point sampling to a fixed number of points, normalization, saved as `.pt` tensors for PointNet++.
+5. **Model training**:
+   - `experience/PointNet/train.py` — trains PointNet++ (MSG) on the `.pt` point clouds.
+   - `experience/DINO/training/teacher_ext.py` — extracts DINOv3 embeddings from the projected images.
+   - `experience/DINO/training/student.py` — trains an MLP classifier on DINOv3 embeddings.
+   - `experience/PointNet/GBM_PN_experience/GBM.py` / `experience/ml/lgbm_PN.py` — LightGBM on tabular geometric features.
+   - `experience/pcf/knn_pcf.py` — KNN classifier on PCF curves.
+6. **Cross-validation** (`CrossVal/CV_pipeline.py`) — runs a stratified k-fold CV comparing PointNet++, DINO+MLP, DINO+SVM, DINO+LogReg, and LightGBM on the same folds, producing `cv_checkpoint.pt`, `cv_predictions.csv`, and `cv_metrics_summary.csv`.
+7. **Inference** (`experience/DINO/predictions/infer.py`) — runs the trained DINO MLP model on test data to produce `predictions_soumission.csv`.
 
-## Name
-Choose a self-explaining name for your project.
+## Visualization
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+`first_visu.ipynb` uses PyVista to render 3D point clouds, visualize the trunk/crown split and estimated DBH (debugging aid for `feature_extraction.py`), and inspect the PCF dataset.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## Results
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+See `plots/Confusion Matrix.png` and `plots/correlationmat.png` for example evaluation outputs, and `test_predictions.csv` / `CrossVal/results/` for sample predictions and checkpoints from prior runs.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## Known issues / TODO
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- Several scripts hardcode file paths (e.g. relative paths like `../../data/...`, `dataset/test`, `PointNet/data/FPS_32k`) that assume a specific working directory or directory layout — these need to be standardized or made configurable (see checklist).
+- `experience/PointNet/GBM_PN_experience/feat_ext_PN.py` imports from a non-existent `PNTrain` module.
+- `first_visu.ipynb` imports from `src.feature_extraction`, which doesn't exist (should be `utils.feature_extraction`).
+- `experience/ml/lgbm_PN.py` is currently empty.
+- Missing dependencies in `pyproject.toml`: `alphashape`, `trimesh`, `scikit-image`, `numba`, `pyvista`, `joblib`.
