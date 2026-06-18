@@ -23,37 +23,42 @@ params = {
 
 # 1. Chargement
 print("Chargement des données...")
-tab_feat = pd.read_csv("tree_features.csv")
-labels_df = pd.read_csv('train_data/labels.csv')
+
+"""
+MAKE SURE YOU USE THE SAME SPLIT YOU USED TO TRAIN THE POINTNET
+"""
+
+pn_feat = pd.read_csv("../../data/pointnet_features_test.csv")
+tab_feat = pd.read_csv("../../data/tableau_features.csv")
+labels_df = pd.read_csv('../../data/labels_split_complex.csv')
 
 tab_feat['filename'] = tab_feat['filename'].str.lstrip(' /')
+pn_feat['filename'] = pn_feat['filename'].str.lstrip(' /')
 labels_df['filename'] = labels_df['filename'].str.lstrip(' /')
 
-full_data = pd.merge(tab_feat, labels_df[['filename', 'species']], on='filename')
+full_data = pd.merge(tab_feat, pn_feat, on='filename')
+full_data = pd.merge(full_data, labels_df[['filename', 'species', 'split']], on='filename')
 
 # 2. ENCODAGE DES LABELS (Crucial pour LightGBM multiclass)
 noms_uniques = sorted(full_data['species'].unique()) # Sorted pour garder le même ordre
 mapping_species = {nom: i for i, nom in enumerate(noms_uniques)}
-y = full_data['species'].map(mapping_species)
+full_data['label_num'] = full_data['species'].map(mapping_species)
 
-# 3. NETTOYAGE DES FEATURES
-X = full_data.drop(columns=['filename', 'species', 'label_id'], errors='ignore')
-X = X.select_dtypes(include=[np.number, bool])
+train_data_raw = full_data[full_data['split'] == 'train'].copy()
+val_data_raw = full_data[full_data['split'] == 'val'].copy()
+
+train_labels = train_data_raw['label_num']
+val_labels = val_data_raw['label_num']
+
+cols_to_drop = ['filename', 'species', 'split', 'label_id', 'label_num']
+
+train_df = train_data_raw.drop(columns=cols_to_drop, errors='ignore').select_dtypes(include=[np.number, bool])
+val_df = val_data_raw.drop(columns=cols_to_drop, errors='ignore').select_dtypes(include=[np.number, bool])
 
 print("--- DEBUGGING SHAPES ---")
-print(f"Features type: {type(X)}")
-print(f"Features count/shape: {getattr(X, 'shape', len(X))}")
-print(f"Labels count/shape: {getattr(y, 'shape', len(y))}")
+print(f"Features Train: {train_df.shape} | Labels Train: {len(train_labels)}")
+print(f"Features Val: {val_df.shape} | Labels Val: {len(val_labels)}")
 print("------------------------")
-
-# 4. SPLIT
-train_df, val_df, train_labels, val_labels = train_test_split(
-    X, 
-    y, 
-    test_size=0.2, 
-    random_state=42, 
-    stratify=y
-)
 
 # 5. DATASETS
 train_data = lgb.Dataset(train_df, label=train_labels)

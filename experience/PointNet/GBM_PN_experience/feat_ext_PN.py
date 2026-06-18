@@ -2,69 +2,79 @@ import os
 import torch
 import numpy as np
 import pandas as pd
-import lightgbm as lgb
 import re
 from pointnet2_cls_msg import get_model
 from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
 
 # --- CONFIGURATION ---
+MODE = "TRAIN" # Choisir "TRAIN" (pour LightGBM) ou "TEST" (pour la soumission)
+
 MODEL_PN_PATH = 'best_model.pth'
-TRAIN_LABEL_CSV = "../../data/labels.csv" # Indispensable pour l'ordre des classes
+TRAIN_LABEL_CSV = "../../data/labels_split_complex.csv"
+TRAIN_PT_DIR = '../../data/FPS_32k_train'
 TEST_PT_DIR = '../../data/FPS_32k_test'
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# 1. RECONSTRUCTION DU MAPPING (Ordre d'entraînement)
-df_train = pd.read_csv(TRAIN_LABEL_CSV)
-# .unique() sans tri = même ordre que celui vu par le LightGBM à l'entraînement
-noms_especes = df_train['species'].unique()
-id_to_species = {i: name for i, name in enumerate(noms_especes)}
-
-print(f"✅ Mapping reconstruit : {len(id_to_species)} classes détectées.")
-print(f"Exemple : Index 0 = {id_to_species[0]}")
-
-# 2. CHARGEMENT DES MODÈLES
+# 1. CHARGEMENT DU MODÈLE POINTNET
+print(f"Chargement de PointNet++ sur {DEVICE}...")
 pn_model = get_model(33, normal_channel=False).to(DEVICE)
 checkpoint = torch.load(MODEL_PN_PATH, map_location=DEVICE)
 pn_model.load_state_dict(checkpoint['model_state_dict'])
 pn_model.eval()
 
-# 3. DATASET POUR LES FICHIERS TEST
-class TestDataset(Dataset):
-    def __init__(self, pt_dir):
-        self.file_list = [f for f in os.listdir(pt_dir) if f.endswith('.pt')]
+# 2. PRÉPARATION DES FICHIERS SELON LE MODE
+if MODE == "TRAIN":
+    df_labels = pd.read_csv(TRAIN_LABEL_CSV)
+    # On reconstruit les noms de fichiers .pt à partir du CSV
+    file_list = [os.path.basename(f).replace('.laz', '.pt').replace('.las', '.pt') for f in df_labels['filename']]
+    pt_dir = TRAIN_PT_DIR
+    output_csv = "../../data/pointnet_features_train.csv"
+else:
+    file_list = [f for f in os.listdir(TEST_PT_DIR) if f.endswith('.pt')]
+    pt_dir = TEST_PT_DIR
+    output_csv = "../../data/pointnet_features_test.csv"
+
+# 3. DATASET D'EXTRACTION
+class ExtractionDataset(Dataset):
+    def __init__(self, file_list, pt_dir):
+        self.file_list = file_list
         self.pt_dir = pt_dir
     def __len__(self): return len(self.file_list)
     def __getitem__(self, idx):
         fname = self.file_list[idx]
         return torch.load(os.path.join(self.pt_dir, fname)), fname
 
-loader = DataLoader(TestDataset(TEST_PT_DIR), batch_size=8, shuffle=False)
+loader = DataLoader(ExtractionDataset(file_list, pt_dir), batch_size=16, shuffle=False, num_workers=8)
 
-# 4. INFERENCE
-results = []
-print(f"🚀 Inférence sur {len(loader.dataset)} arbres...")
+# 4. EXTRACTION
+all_features = []
+all_fnames = []
+
+print(f"🚀 Extraction des features ({MODE} mode) sur {len(loader.dataset)} arbres...")
 
 with torch.no_grad():
-    for points, fnames in loader:
-        # A. Extraction des 1024 features (PointNet++)
+    for points, fnames in tqdm(loader):
         points = points.to(DEVICE).transpose(2, 1)
-        pred, trans_feat, feat = pn_model(points)
+        
+        # On ne garde que 'feat' (le vecteur 1024D avant la classification finale)
+        _, _, feat = pn_model(points)
+        
+        all_features.append(feat.cpu().numpy())
+        all_fnames.extend(fnames)
 
-        preds_idx = pred.argmax(1)
+# Concaténer tous les batchs
+features_matrix = np.vstack(all_features)
 
-        # C. Traduction et Stockage
-        for j in range(len(fnames)):
-            # Extraction de l'ID numérique (ex: 'tree_523.pt' -> 523)
-            tree_id = int(re.search(r'\d+', fnames[j]).group())
-            species_name = id_to_species[preds_idx[j].item()]
-            
-            results.append({'treeID': tree_id, 'predicted_species': species_name})
+# 5. SAUVEGARDE EN CSV
+# Créer des noms de colonnes dynamiques (pn_feat_0, pn_feat_1, ..., pn_feat_1023)
+feat_cols = [f"pn_feat_{i}" for i in range(features_matrix.shape[1])]
+df_features = pd.DataFrame(features_matrix, columns=feat_cols)
+df_features['filename'] = all_fnames
 
-# 5. SAUVEGARDE FORMAT BENCHMARK
-# Le benchmark fait un pd.merge(..., on='treeID'), il faut donc ces colonnes exactes.
-final_df = pd.DataFrame(results)
+# Réorganiser pour mettre 'filename' en première colonne
+cols = ['filename'] + feat_cols
+df_features = df_features[cols]
 
-# On enregistre en format CSV standard (séparateur virgule) avec le header
-final_df.to_csv("final_predictions.csv", sep=',', index=False, header=True)
-
-print(f"✨ Terminé ! Fichier 'final_predictions.txt' prêt pour soumission.")
+df_features.to_csv(output_csv, index=False)
+print(f"✨ Terminé ! Features sauvegardées dans '{output_csv}'")

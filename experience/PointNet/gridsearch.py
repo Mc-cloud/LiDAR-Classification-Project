@@ -11,28 +11,34 @@ import pandas as pd
 NUM_CLASSES = 33
 device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
 
-df = pd.read_csv("../../data/labels.csv")
+df = pd.read_csv("../../data/labels_split_complex.csv")
 
 noms_uniques = sorted(df['species'].unique()) 
 mapping_species = {nom: i for i, nom in enumerate(noms_uniques)}
 df['label_entier'] = df['species'].map(mapping_species)
 
-tree_arrays = []
-labels = []
+train_df = df[df['split'] == 'train'].copy()
+val_df = df[df['split'] == 'val'].copy()
 
-for index, row in df.iterrows():
-    laz_path = row['filename']
-    label = row['label_entier']
-    base_name = os.path.basename(laz_path).replace('.laz', '.pt').replace('.las', '.pt')
-    full_path = os.path.join("FPS_32k", base_name)
+def get_paths_labels(sub_df):
+    paths = []
+    labels = []
 
-    tree_arrays.append(full_path)
-    labels.append(label)
+    for index, row in sub_df.iterrows():
+        laz_path = row['filename']
+        label = row['label_entier']
+        base_name = os.path.basename(laz_path).replace('.laz', '.pt').replace('.las', '.pt')
+        full_path = os.path.join("../../data/FPS_32k_train", base_name)
+
+        paths.append(full_path)
+        labels.append(label)
+
+    return paths, labels
 
 print("Création du dataset", flush = True)
 
-train_paths, val_paths, train_labels, val_labels = train_test_split(tree_arrays, labels, test_size = 0.1, random_state = 42, stratify = labels )
-
+train_paths, train_labels = get_paths_labels(train_df)
+val_paths, val_labels = get_paths_labels(val_df)
 
 # --- ATTENTION ---
 # Assure-toi d'avoir défini train_paths, train_labels, val_paths, val_labels 

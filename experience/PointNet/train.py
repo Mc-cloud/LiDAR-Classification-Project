@@ -4,7 +4,6 @@ import torch
 import torch.optim as optim
 from torch.amp import autocast, GradScaler
 from torch.utils.data import DataLoader, WeightedRandomSampler
-from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 import numpy as np
 import pandas as pd
@@ -42,23 +41,17 @@ scaler = GradScaler('cuda')
 
 print('Chargement des données', flush=True)
 
-df = pd.read_csv("train_data/labels.csv")
-
-df['H_bin'] = pd.qcut(df['tree_H'], q = 20, labels = False, duplicates = 'drop')
-df['strat_key'] = df['species'].astype(str) + "_" + df['data_type'].astype(str) + "_H" + df["H_bin"].astype(str)
-
-val_counts = df['strat_key'].value_counts()
-rare_keys = val_counts[val_counts < 2].index
-
-df_rare = df[df['strat_key'].isin(rare_keys)]
-df_common = df[~df['strat_key'].isin(rare_keys)]
+df = pd.read_csv("../../data/labels_split_complex.csv")
 
 colonne_label = 'species'
 
-noms_uniques = df[colonne_label].unique()
+noms_uniques = sorted(df[colonne_label].unique())
 mapping_species = {nom : index for index, nom in enumerate(noms_uniques)}
 
 df['label_entier'] = df[colonne_label].map(mapping_species)
+
+train_df = df[df['split'] == 'train'].copy()
+val_df = df[df['split'] == 'val'].copy()
 
 class_counts = df.groupby('label_entier').size().sort_index().values
 num_classes = len(class_counts)
@@ -68,35 +61,26 @@ weights = total_samples / (num_classes * class_counts)
 raw_class_weights = torch.log1p((torch.FloatTensor(weights)).to(device))
 class_weights = raw_class_weights / raw_class_weights.mean()
 
-tree_arrays = []
-labels = []
-groups = []
+def get_path_labels(sub_df):
+    paths = []
+    labels = []
 
-for index, row in df.iterrows():
-    laz_path = row['filename']
-    label = row['label_entier']
-    base_name = os.path.basename(laz_path).replace('.laz', '.pt').replace('.las', '.pt')
-    full_path = os.path.join("data/FPS_32k", base_name)
+    for index, row in sub_df.iterrows():
+        laz_path = row['filename']
+        label = row['label_entier']
 
-    tree_arrays.append(full_path)
-    labels.append(label)
+        base_name = os.path.basename(laz_path).replace('.laz', '.pt').replace('.las', '.pt')
+        full_path = os.path.join("../../data/FPS_32k", base_name)
+
+        paths.append(full_path)
+        labels.append(label)
+    
+    return paths, labels
 
 print("Création du dataset", flush = True)
 
-tree_arrays_np = np.array(tree_arrays)
-labels_np = np.array(labels)
-
-train_idx, val_idx = train_test_split(
-    df_common.index, 
-    test_size=0.20, 
-    stratify=df_common['strat_key'], 
-    random_state=42
-)
-
-train_paths = tree_arrays_np[train_idx].tolist()
-val_paths = tree_arrays_np[val_idx].tolist()
-train_labels = labels_np[train_idx].tolist()
-val_labels = labels_np[val_idx].tolist()
+train_paths, train_labels = get_path_labels(train_df)
+val_paths, val_labels = get_path_labels(val_df)
 
 train_class_counts = np.bincount(train_labels, minlength = NUM_CLASSES)
 train_class_counts[train_class_counts == 0] = 1
