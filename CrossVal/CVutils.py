@@ -44,9 +44,9 @@ class CVConfig:
 
     # ── Shared ───────────────────────────────────────────────────────────────
     labels_csv: str = "../data/train_data/labels.csv"
-    checkpoint_file: str = "cv_checkpoint.pt"
-    predictions_csv: str = "cv_predictions.csv"
-    metrics_csv: str = "cv_metrics_summary.csv"
+    checkpoint_file: str = "CrossVal/results/cv_checkpoint.pt"
+    predictions_csv: str = "CrossVal/results/cv_predictions.csv"
+    metrics_csv: str = "Cross_val/results/cv_metrics_summary.csv"
     num_classes: int = 33
     device: str = "auto"   # "auto" | "cuda" | "cpu"
 
