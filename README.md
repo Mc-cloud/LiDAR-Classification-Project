@@ -82,7 +82,3 @@ See `plots/Confusion Matrix.png` and `plots/correlationmat.png` for example eval
 ## Known issues / TODO
 
 - Several scripts hardcode file paths (e.g. relative paths like `../../data/...`, `dataset/test`, `PointNet/data/FPS_32k`) that assume a specific working directory or directory layout — these need to be standardized or made configurable (see checklist).
-- `experience/PointNet/GBM_PN_experience/feat_ext_PN.py` imports from a non-existent `PNTrain` module.
-- `first_visu.ipynb` imports from `src.feature_extraction`, which doesn't exist (should be `utils.feature_extraction`).
-- `experience/ml/lgbm_PN.py` is currently empty.
-- Missing dependencies in `pyproject.toml`: `alphashape`, `trimesh`, `scikit-image`, `numba`, `pyvista`, `joblib`.
