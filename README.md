@@ -8,13 +8,20 @@ Classifying individual trees by species from airborne/terrestrial LiDAR point cl
 .
 ├── data/                     # Datasets (raw point clouds, labels, extracted features)
 │   ├── labels.csv
-│   ├── pcf_dataset.csv
+│   ├── labels_split_simple.csv # labels with the species stratification
+│   ├── labels_split_complex.csv # labels with stratification based on the height, type of scan and the species to match the benchmark
+│   ├── pcf_dataset.csv      
 │   ├── tableau_features.csv
 │   ├── train_data/           # Training .laz files + labels/feature CSVs
-│   └── test_data/            # Test .laz files (empty placeholder, see below)
+│   ├── test_data/            # Test .laz files (empty placeholder, see below)
+│   ├── FPS_32K_train/        # Training .pt files extracted using Farthest Point Sampling (utils/convert_to_pt.py) and fed into the PointNet++
+│   ├── FPS_32K_test/         # Test .pt files
+│   ├── train_proj/           # Train .npy files (2D projections of the 3D point clouds using utils/projection2D.py)
+│   └── test_proj/            # Test .npy files   
 ├── utils/
 │   ├── feature_extraction.py # Extract geometric tree features from .laz -> tableau_features.csv
 │   ├── projection2D.py       # Project point clouds to 2D multi-view images (for DINO)
+│   ├── generate_split.py     # Data split generalized to prevent data leakage
 │   └── convert_to_pt.py       # Farthest-point-sample + normalize point clouds -> .pt tensors
 ├── experience/
 │   ├── pcf/                  # Pair Correlation Function pipeline + KNN classifier
@@ -29,6 +36,7 @@ Classifying individual trees by species from airborne/terrestrial LiDAR point cl
 ├── plots/                     # Confusion matrix, correlation matrix figures
 ├── first_visu.ipynb            # 3D point cloud visualization (PyVista) + DBH/trunk debugging
 ├── pyproject.toml / uv.lock    # Project dependencies (managed with uv)
+├── crossvalidationplots.ipynb  # Added the code to generate plots after the cross-validation
 └── test_predictions.csv        # Example output predictions
 ```
 
