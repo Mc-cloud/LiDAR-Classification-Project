@@ -81,7 +81,7 @@ Pre-computed feature tables are included:
 
 `first_visu.ipynb` uses PyVista to render 3D point clouds, visualize the trunk/crown split and estimated DBH (debugging aid for `feature_extraction.py`), and inspect the PCF dataset.
 
-'crossvalidationplots.ipynb' used the results from the cross fold validation to generate plots such as the confusion matrix, the spread of the F1-score, etc
+`crossvalidationplots.ipynb` used the results from the cross fold validation to generate plots such as the confusion matrix, the spread of the F1-score, etc
 
 ## Results
 
