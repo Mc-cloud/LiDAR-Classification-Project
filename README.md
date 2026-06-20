@@ -42,8 +42,6 @@ uv sync
 
 This installs the dependencies listed in `pyproject.toml`/`uv.lock`, including PyTorch, scikit-learn, LightGBM, transformers, laspy, etc.
 
-> **Note:** several scripts import packages that are **not** currently listed in `pyproject.toml` (`alphashape`, `trimesh`, `scikit-image`, `numba`, `pyvista`, `joblib`). You'll need to add these before those scripts will run — see the checklist below.
-
 ### GPU
 
 PointNet++ training and DINOv3 embedding extraction are designed to run on a CUDA GPU (`torch.cuda.is_available()` is checked, falling back to CPU). DINOv3-ViT7B is large — extracting embeddings on CPU is impractical.
