@@ -89,4 +89,4 @@ See `plots/Confusion Matrix.png` and `plots/correlationmat.png` for example eval
 
 ## Known issues / TODO
 
-- Several scripts hardcode file paths (e.g. relative paths like `../../data/...`, `dataset/test`, `PointNet/data/FPS_32k`) that assume a specific working directory or directory layout — these need to be standardized or made configurable (see checklist).
+- Several scripts hardcode file paths (e.g. relative paths like `../../data/...`, `dataset/test`, `PointNet/data/FPS_32k`) that assume a specific working directory or directory layout — these need to be standardized or made configurable.
